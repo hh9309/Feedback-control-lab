@@ -1,0 +1,7 @@
+{
+  "name": "Feedback Lab 反馈系统控制实验室",
+  "description": "交互式系统动力学与控制工程仿真实验室，包含系统拓扑构建器、传递函数配置、正负反馈对比、时域频域分析、PID调校、AI智能洞察、Python代码引擎与经典案例库。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
