@@ -31,8 +31,13 @@ import {
   TransferFunctionModel,
 } from '../../types/control';
 import { formatPolynomial, poly } from '../../services/controlMath';
+import {
+  executeChatQuery,
+  executeDiagnosticReport,
+  LlmModelType,
+} from '../../services/llmService';
 
-export type LlmModelType = 'gemini-3-flash' | 'deepseek-v4-pro';
+export type { LlmModelType };
 
 interface ChatMessage {
   id: string;
@@ -143,33 +148,24 @@ export const AiInsightsPanel: React.FC<AiInsightsPanelProps> = ({
     setLoading(true);
     setReportError(null);
     try {
-      const res = await fetch('/api/ai/insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: selectedModel,
-          apiKey: apiKey.trim(),
-          feedbackMode,
-          transferFunction: `${formatPolynomial(plant.numerator)} / [${formatPolynomial(plant.denominator)}]`,
-          closedLoopTf: `${formatPolynomial(closedLoopTf.numerator)} / [${formatPolynomial(closedLoopTf.denominator)}]`,
-          poles,
-          zeros,
-          pidParams,
-          metrics,
-          delay: plant.delay,
-        }),
+      const result = await executeDiagnosticReport({
+        model: selectedModel,
+        apiKey: apiKey.trim(),
+        feedbackMode,
+        transferFunction: `${formatPolynomial(plant.numerator)} / [${formatPolynomial(plant.denominator)}]`,
+        closedLoopTf: `${formatPolynomial(closedLoopTf.numerator)} / [${formatPolynomial(closedLoopTf.denominator)}]`,
+        poles,
+        zeros,
+        pidParams,
+        metrics,
+        delay: plant.delay,
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || '诊断请求失败');
-      }
-
-      setInsightsMarkdown(data.markdown);
-      setActiveSource(data.source || selectedModel);
+      setInsightsMarkdown(result.markdown);
+      setActiveSource(result.source);
     } catch (err: any) {
       console.error(err);
-      setReportError(err.message || '网络连接或模型响应异常');
+      setReportError(err.message || '大模型诊断异常，请检查输入的 API-Key 是否有效');
     } finally {
       setLoading(false);
     }
@@ -200,34 +196,25 @@ export const AiInsightsPanel: React.FC<AiInsightsPanelProps> = ({
     setChatError(null);
 
     try {
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: selectedModel,
-          apiKey: apiKey.trim(),
-          systemContext: buildSystemContext(),
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-        }),
+      const result = await executeChatQuery({
+        model: selectedModel,
+        apiKey: apiKey.trim(),
+        systemContext: buildSystemContext(),
+        messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || '大模型应答失败');
-      }
 
       const botReply: ChatMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: data.reply,
+        content: result.reply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        model: selectedModel,
+        model: result.source,
       };
 
       setChatMessages((prev) => [...prev, botReply]);
     } catch (err: any) {
       console.error(err);
-      setChatError(err.message || '模型连接异常');
+      setChatError(err.message || '模型连接异常，请检查 API-Key 配置');
     } finally {
       setChatLoading(false);
     }

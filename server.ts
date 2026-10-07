@@ -96,8 +96,14 @@ app.post('/api/ai/insights', async (req: Request, res: Response) => {
             temperature: 0.6,
           }),
         });
-        const dsData = await dsRes.json();
-        markdown = dsData.choices?.[0]?.message?.content || '';
+        const dsType = dsRes.headers.get('content-type') || '';
+        if (dsType.includes('application/json')) {
+          const dsData = await dsRes.json();
+          markdown = dsData.choices?.[0]?.message?.content || '';
+        } else {
+          const errText = await dsRes.text();
+          console.warn('DeepSeek returned non-JSON:', errText.slice(0, 100));
+        }
       } catch (dsErr: any) {
         console.warn('DeepSeek API call failed, falling back to rule engine:', dsErr.message);
         source = 'deepseek_fallback_expert';
@@ -226,8 +232,14 @@ ${systemContext || '通用控制闭环'}
             temperature: 0.7,
           }),
         });
-        const dsData = await dsRes.json();
-        reply = dsData.choices?.[0]?.message?.content || '';
+        const dsType = dsRes.headers.get('content-type') || '';
+        if (dsType.includes('application/json')) {
+          const dsData = await dsRes.json();
+          reply = dsData.choices?.[0]?.message?.content || '';
+        } else {
+          const errText = await dsRes.text();
+          console.warn('DeepSeek chat returned non-JSON:', errText.slice(0, 100));
+        }
       } catch (dsErr: any) {
         console.warn('DeepSeek chat failed:', dsErr.message);
       }
